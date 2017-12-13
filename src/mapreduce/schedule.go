@@ -24,5 +24,4 @@ func (mr *Master) schedule(phase jobPhase) {
 	//
 	// TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 	//
-	fmt.Printf("Schedule: %v phase done\n", phase)
 }

@@ -1,8 +1,33 @@
 package mapreduce
 
 import (
+	"os"
 	"hash/fnv"
+	"io/ioutil"
+	"encoding/json"
 )
+
+func checkError(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
+
+
+func getSize(nReduce int, fileLen int) (averSize int) {
+	if nReduce == 1 {
+		return fileLen
+	}
+	for lastFileSize := fileLen / nReduce; lastFileSize > 0; lastFileSize-- {
+		averSize = (fileLen - lastFileSize) / (nReduce -1)
+		if lastFileSize <= averSize && (nReduce -1) * averSize + lastFileSize == fileLen {
+			return averSize
+		}
+	}
+	// Todo: raise error
+	return 0
+}
+
 
 // doMap does the job of a map worker: it reads one of the input files
 // (inFile), calls the user-defined map function (mapF) for that file's
@@ -40,6 +65,32 @@ func doMap(
 	//     err := enc.Encode(&kv)
 	//
 	// Remember to close the file after you have written all the values!
+
+    // TODO: use panic
+    // Read file
+    b, err := ioutil.ReadFile(inFile)
+    checkError(err)
+    KeyValueList := mapF(inFile, string(b))
+    averSize := getSize(nReduce, len(KeyValueList))
+
+    for r := 0; r < nReduce; r++ {
+		var contents []KeyValue
+		if r == nReduce - 1 {
+			contents = KeyValueList[r*averSize : ]
+		} else {
+			contents = KeyValueList[r*averSize : (r+1)*averSize]
+		}
+		rName := reduceName(jobName, mapTaskNumber, r)
+        f, err := os.Create(rName)
+		defer f.Close()
+        checkError(err)
+
+		enc := json.NewEncoder(f)
+        for _, kv := range contents {
+        	err := enc.Encode(&kv)
+        	checkError(err)
+		}
+    }
 }
 
 func ihash(s string) uint32 {

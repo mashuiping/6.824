@@ -6,6 +6,7 @@ import (
 )
 
 // Debugging enabled?
+// this will cause the stdout output the log.debug message
 const debugEnabled = false
 
 // DPrintf will only print if the debugEnabled const has been set to true

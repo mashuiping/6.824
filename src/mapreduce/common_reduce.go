@@ -1,5 +1,11 @@
 package mapreduce
 
+import (
+	"sort"
+	"encoding/json"
+	"os"
+)
+
 // doReduce does the job of a reduce worker: it reads the intermediate
 // key/value pairs (produced by the map phase) for this task, sorts the
 // intermediate key/value pairs by key, calls the user-defined reduce function
@@ -31,4 +37,41 @@ func doReduce(
 	// 	enc.Encode(KeyValue{key, reduceF(...)})
 	// }
 	// file.Close()
+	var KeyValueList []KeyValue
+	var tempKeyValue KeyValue
+	for m := 0; m < nMap; m++ {
+		rName := reduceName(jobName, m, reduceTaskNumber)
+		itFile, err := os.Open(rName)
+		defer itFile.Close()
+		checkError(err)
+		dec := json.NewDecoder(itFile)
+		for {
+			err := dec.Decode(&tempKeyValue)
+			if err != nil {
+				break
+			} else {
+				KeyValueList = append(KeyValueList, tempKeyValue)
+			}
+		}
+	}
+	// sort: https://golang.org/pkg/sort/
+	sort.Slice(KeyValueList, func(i, j int) bool {
+		return KeyValueList[i].Key < KeyValueList[j].Key
+	})
+	mName := mergeName(jobName, reduceTaskNumber)
+	mergeFile, err := os.Create(mName)
+	defer mergeFile.Close()
+	checkError(err)
+	enc := json.NewEncoder(mergeFile)
+
+	keys := make(map[string]bool)
+	kvs := make(map[string][]string)
+	for _, kv := range KeyValueList {
+		keys[kv.Key] = true
+		kvs[kv.Key] = append(kvs[kv.Key], kv.Value)
+	}
+	for ks := range keys {
+		err := enc.Encode(KeyValue{ks, reduceF(ks, kvs[ks])})
+		checkError(err)
+	}
 }

@@ -22,7 +22,7 @@ type Master struct {
 	files   []string // Input files
 	nReduce int      // Number of reduce partitions
 
-	shutdown chan struct{}
+    shutdown chan struct{}
 	l        net.Listener
 	stats    []int
 }
