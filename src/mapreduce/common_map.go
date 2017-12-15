@@ -13,22 +13,6 @@ func checkError(e error) {
 	}
 }
 
-
-func getSize(nReduce int, fileLen int) (averSize int) {
-	if nReduce == 1 {
-		return fileLen
-	}
-	for lastFileSize := fileLen / nReduce; lastFileSize > 0; lastFileSize-- {
-		averSize = (fileLen - lastFileSize) / (nReduce -1)
-		if lastFileSize <= averSize && (nReduce -1) * averSize + lastFileSize == fileLen {
-			return averSize
-		}
-	}
-	// Todo: raise error
-	return 0
-}
-
-
 // doMap does the job of a map worker: it reads one of the input files
 // (inFile), calls the user-defined map function (mapF) for that file's
 // contents, and partitions the output into nReduce intermediate files.
@@ -71,26 +55,22 @@ func doMap(
     b, err := ioutil.ReadFile(inFile)
     checkError(err)
     KeyValueList := mapF(inFile, string(b))
-    averSize := getSize(nReduce, len(KeyValueList))
 
+    var files [] *os.File
     for r := 0; r < nReduce; r++ {
-		var contents []KeyValue
-		if r == nReduce - 1 {
-			contents = KeyValueList[r*averSize : ]
-		} else {
-			contents = KeyValueList[r*averSize : (r+1)*averSize]
-		}
-		rName := reduceName(jobName, mapTaskNumber, r)
-        f, err := os.Create(rName)
-		defer f.Close()
-        checkError(err)
+    	rName := reduceName(jobName, mapTaskNumber, r)
+    	f, err := os.Create(rName)
+    	defer f.Close()
+    	checkError(err)
+    	files = append(files, f)
+	}
 
-		enc := json.NewEncoder(f)
-        for _, kv := range contents {
-        	err := enc.Encode(&kv)
-        	checkError(err)
-		}
-    }
+	for _, kv := range KeyValueList {
+		wF := ihash(kv.Key) % uint32(nReduce)
+		enc := json.NewEncoder(files[wF])
+		err := enc.Encode(&kv)
+		checkError(err)
+	}
 }
 
 func ihash(s string) uint32 {

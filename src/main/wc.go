@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"strconv"
+	"unicode"
 )
 
 // The mapping function is called once for each piece of the input.
@@ -15,7 +16,10 @@ import (
 func mapF(document string, value string) (res []mapreduce.KeyValue) {
 	// TODO: you have to write this function
 	fmt.Printf("Map %s\n", document)
-	words := strings.Fields(value)
+	f := func(c rune) bool {
+		return !unicode.IsLetter(c)
+	}
+	words := strings.FieldsFunc(value, f)
 	for _, w := range words {
 		kv := mapreduce.KeyValue{Key:w, Value:"1"}
 		res = append(res, kv)
