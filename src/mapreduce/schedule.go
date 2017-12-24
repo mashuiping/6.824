@@ -27,7 +27,6 @@ func (mr *Master) schedule(phase jobPhase) {
 	//
 	var tasks stack.Stack
 	for i := 0; i < ntasks; i++ {
-		fmt.Println("task", i)
 		tasks.Push(i)
 	}
 	var chans [] chan int
@@ -50,7 +49,6 @@ func (mr *Master) schedule(phase jobPhase) {
 			taskNumber := tasks.Pop()
 			mr.Unlock()
 
-
 			iChan := make(chan int)
 			mr.Lock()
 			chans = append(chans, iChan)
@@ -59,18 +57,26 @@ func (mr *Master) schedule(phase jobPhase) {
 			var doTaskArgs DoTaskArgs
 			doTaskArgs.Phase = phase
 			doTaskArgs.JobName = mr.jobName
-			fmt.Println(taskNumber)
+			if taskNumber == nil {
+				go func() {
+					mr.registerChannel <- iWorker
+				}()
+				return
+			}
 			doTaskArgs.TaskNumber = taskNumber.(int)
 			if phase == mapPhase {
 				doTaskArgs.File = mr.files[taskNumber.(int)]
 			}
-			doTaskArgs.NumOtherPhase = mr.nReduce
+			doTaskArgs.NumOtherPhase = nios
 
 			ok := call(iWorker, "Worker.DoTask", doTaskArgs, new(struct{}))
 			if !ok {
 				mr.Lock()
 				tasks.Push(taskNumber)
 				mr.Unlock()
+				fmt.Println("call worker ", iWorker, " error")
+				iChan <- taskNumber.(int)
+				return
 			}
 			go func() {
 				mr.registerChannel <- iWorker
