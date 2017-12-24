@@ -19,6 +19,8 @@ func (mr *Master) Shutdown(_, _ *struct{}) error {
 // startRPCServer starts the Master's RPC server. It continues accepting RPC
 // calls (Register in particular) for as long as the worker is alive.
 func (mr *Master) startRPCServer() {
+	// 因为使用了unix域套接字, 所以不能使用http server挂接上rpc服务.
+	// 因此直接使用rpc server
 	rpcs := rpc.NewServer()
 	rpcs.Register(mr)
 	os.Remove(mr.address) // only needed for "unix"

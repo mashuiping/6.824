@@ -1,6 +1,7 @@
 package mapreduce
 
 import "fmt"
+import "github.com/golang-collections/collections/stack"
 
 // schedule starts and waits for all tasks in the given phase (Map or Reduce).
 func (mr *Master) schedule(phase jobPhase) {
@@ -24,4 +25,57 @@ func (mr *Master) schedule(phase jobPhase) {
 	//
 	// TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 	//
+	var tasks stack.Stack
+	for i := 0; i < ntasks; i++ {
+		fmt.Println("task", i)
+		tasks.Push(i)
+	}
+	var chans [] chan int
+	for {
+		mr.Lock()
+		if tasks.Len() == 0 {
+			for _, iChan := range chans {
+				<- iChan
+			}
+			if tasks.Len() == 0 {
+				mr.Unlock()
+				break
+			}
+		}
+		mr.Unlock()
+		worker := <- mr.registerChannel
+		go func() {
+			iWorker := worker
+			mr.Lock()
+			taskNumber := tasks.Pop()
+			mr.Unlock()
+
+
+			iChan := make(chan int)
+			mr.Lock()
+			chans = append(chans, iChan)
+			mr.Unlock()
+
+			var doTaskArgs DoTaskArgs
+			doTaskArgs.Phase = phase
+			doTaskArgs.JobName = mr.jobName
+			fmt.Println(taskNumber)
+			doTaskArgs.TaskNumber = taskNumber.(int)
+			if phase == mapPhase {
+				doTaskArgs.File = mr.files[taskNumber.(int)]
+			}
+			doTaskArgs.NumOtherPhase = mr.nReduce
+
+			ok := call(iWorker, "Worker.DoTask", doTaskArgs, new(struct{}))
+			if !ok {
+				mr.Lock()
+				tasks.Push(taskNumber)
+				mr.Unlock()
+			}
+			go func() {
+				mr.registerChannel <- iWorker
+			}()
+			iChan <- taskNumber.(int)
+		}()
+	}
 }

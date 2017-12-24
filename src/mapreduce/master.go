@@ -33,6 +33,7 @@ func (mr *Master) Register(args *RegisterArgs, _ *struct{}) error {
 	mr.Lock()
 	defer mr.Unlock()
 	debug("Register: worker %s\n", args.Worker)
+	// mr.workers 被 killWorkers()函数调用
 	mr.workers = append(mr.workers, args.Worker)
 	go func() {
 		mr.registerChannel <- args.Worker
