@@ -7,12 +7,6 @@ import (
 	"encoding/json"
 )
 
-func checkError(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
 // doMap does the job of a map worker: it reads one of the input files
 // (inFile), calls the user-defined map function (mapF) for that file's
 // contents, and partitions the output into nReduce intermediate files.
@@ -50,7 +44,6 @@ func doMap(
 	//
 	// Remember to close the file after you have written all the values!
 
-    // TODO: use panic
     // Read file
     b, err := ioutil.ReadFile(inFile)
     checkError(err)
