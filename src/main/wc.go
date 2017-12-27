@@ -15,14 +15,12 @@ import (
 // key/value pairs, each represented by a mapreduce.KeyValue.
 func mapF(document string, value string) (res []mapreduce.KeyValue) {
 	// TODO: you have to write this function
-	fmt.Printf("Map %s\n", document)
-	f := func(c rune) bool {
-		return !unicode.IsLetter(c)
-	}
-	words := strings.FieldsFunc(value, f)
+	words := strings.FieldsFunc(value,
+		func(c rune) bool {
+			return !unicode.IsLetter(c)
+	})
 	for _, w := range words {
-		kv := mapreduce.KeyValue{Key:w, Value:"1"}
-		res = append(res, kv)
+		res = append(res, mapreduce.KeyValue{Key:w, Value:"1"})
 	}
 	return
 }
@@ -32,17 +30,7 @@ func mapF(document string, value string) (res []mapreduce.KeyValue) {
 // should be a single output value for that key.
 func reduceF(key string, values []string) string {
 	// TODO: you also have to write this function
-	fmt.Printf("Reduce %s\n", key)
-	ret := 0
-	for _, value := range values {
-		value, err := strconv.Atoi(value)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		ret += value
-	}
-	return strconv.Itoa(ret)
+	return strconv.Itoa(len(values))
 }
 
 // Can be run in 3 ways:

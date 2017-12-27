@@ -48,7 +48,6 @@ func doReduce(
 		for {
 			err := dec.Decode(&tempKeyValue)
 			if err != nil {
-				debug("%s", err)
 				break
 			} else {
 				// 可以在这里采用堆排序(先开辟空间), 这样不用在下面再次使用sort
