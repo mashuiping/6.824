@@ -29,22 +29,25 @@ func (mr *Master) schedule(phase jobPhase) {
 	for i := 0; i < ntasks; i++ {
 		tasks.Push(i)
 	}
+	// 同步全部任务
 	var chans [] chan int
 	for {
 		mr.Lock()
 		if tasks.Len() == 0 {
+			// 等待全部任务结束
 			for _, iChan := range chans {
 				<- iChan
 			}
+			// 如果任务全部完成, schedule 返回
 			if tasks.Len() == 0 {
 				mr.Unlock()
-				break
+				return
 			}
 		}
 		mr.Unlock()
+		// 拿worker
 		worker := <- mr.registerChannel
 		go func() {
-			iWorker := worker
 			mr.Lock()
 			taskNumber := tasks.Pop()
 			mr.Unlock()
@@ -57,9 +60,11 @@ func (mr *Master) schedule(phase jobPhase) {
 			var doTaskArgs DoTaskArgs
 			doTaskArgs.Phase = phase
 			doTaskArgs.JobName = mr.jobName
+			// pop 到最后可能出来nil值
 			if taskNumber == nil {
+				// worker没有执行错误,记得把worker写回
 				go func() {
-					mr.registerChannel <- iWorker
+					mr.registerChannel <- worker
 				}()
 				return
 			}
@@ -69,17 +74,18 @@ func (mr *Master) schedule(phase jobPhase) {
 			}
 			doTaskArgs.NumOtherPhase = nios
 
-			ok := call(iWorker, "Worker.DoTask", doTaskArgs, new(struct{}))
+			ok := call(worker, "Worker.DoTask", doTaskArgs, new(struct{}))
 			if !ok {
 				mr.Lock()
 				tasks.Push(taskNumber)
 				mr.Unlock()
-				fmt.Println("call worker ", iWorker, " error")
+				fmt.Println("call worker ", worker, " error")
+				// 方便调试
 				iChan <- taskNumber.(int)
 				return
 			}
 			go func() {
-				mr.registerChannel <- iWorker
+				mr.registerChannel <- worker
 			}()
 			iChan <- taskNumber.(int)
 		}()
